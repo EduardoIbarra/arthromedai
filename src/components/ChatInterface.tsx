@@ -8,8 +8,8 @@ import { VoiceControl } from './VoiceControl';
 import { useVoice } from '@/hooks/useVoice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language, translations } from '@/lib/i18n';
-import { useChat, Message } from '@ai-sdk/react';
-import { TextStreamChatTransport } from 'ai';
+import { useChat } from '@ai-sdk/react';
+import { TextStreamChatTransport, Message } from 'ai';
 
 export const ChatInterface = () => {
   const [language, setLanguage] = useState<Language>('es');
