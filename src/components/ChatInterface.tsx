@@ -8,7 +8,7 @@ import { VoiceControl } from './VoiceControl';
 import { useVoice } from '@/hooks/useVoice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language, translations } from '@/lib/i18n';
-import { useChat } from '@ai-sdk/react';
+import { useChat, Message } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 
 export const ChatInterface = () => {
@@ -54,13 +54,14 @@ export const ChatInterface = () => {
         speak(cleanedText);
       }
     },
-    messages: [
+    initialMessages: [
       {
         id: '1',
         role: 'assistant',
+        content: t.welcome,
         parts: [{ type: 'text', text: t.welcome }],
         createdAt: new Date()
-      }
+      } as Message
     ]
   });
 
@@ -70,11 +71,12 @@ export const ChatInterface = () => {
       setMessages([{
         id: '1',
         role: 'assistant',
+        content: t.welcome,
         parts: [{ type: 'text', text: t.welcome }],
         createdAt: new Date()
-      }]);
+      } as Message]);
     }
-  }, [language, setMessages, t.welcome]);
+  }, [language, setMessages, t.welcome, messages]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
