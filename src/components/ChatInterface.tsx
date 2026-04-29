@@ -8,7 +8,7 @@ import { VoiceControl } from './VoiceControl';
 import { useVoice } from '@/hooks/useVoice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Language, translations } from '@/lib/i18n';
-import { useChat, UIMessage as Message } from '@ai-sdk/react';
+import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 
 export const ChatInterface = () => {
@@ -34,16 +34,16 @@ export const ChatInterface = () => {
       .trim();
   };
 
-  const { messages, sendMessage, setMessages, isLoading } = useChat({
+  const { messages, sendMessage, setMessages, status } = useChat({
     transport: new TextStreamChatTransport({
       api: '/api/chat',
       body: { language }
     }),
     onFinish: ({ message }) => {
       // Robust text extraction from parts or content
-      const textFromParts = message.parts
-        ?.filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-        ?.map(part => part.text)
+      const textFromParts = (message as any).parts
+        ?.filter((part: any) => part.type === 'text')
+        ?.map((part: any) => part.text)
         ?.join('') || '';
       
       const finalText = textFromParts || (message as any).content || '';
@@ -54,16 +54,17 @@ export const ChatInterface = () => {
         speak(cleanedText);
       }
     },
-    initialMessages: [
+    messages: [
       {
         id: '1',
         role: 'assistant',
-        content: t.welcome,
         parts: [{ type: 'text', text: t.welcome }],
         createdAt: new Date()
-      } as Message
+      }
     ]
   });
+  
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   // Re-initialize welcome message when language changes if it's the only message
   useEffect(() => {
@@ -71,10 +72,9 @@ export const ChatInterface = () => {
       setMessages([{
         id: '1',
         role: 'assistant',
-        content: t.welcome,
         parts: [{ type: 'text', text: t.welcome }],
         createdAt: new Date()
-      } as Message]);
+      } as any]);
     }
   }, [language, setMessages, t.welcome, messages]);
 
