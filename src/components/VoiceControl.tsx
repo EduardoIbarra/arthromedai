@@ -1,8 +1,8 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Send, Bot } from 'lucide-react';
+import { Mic, MicOff, Send, Bot, Keyboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface VoiceControlProps {
@@ -16,10 +16,38 @@ interface VoiceControlProps {
 }
 
 export const VoiceControl = ({ isListening, transcript, onStart, onStop, onSubmit, isProcessing, t }: VoiceControlProps) => {
+  const [inputValue, setInputValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync transcript to input value when listening
+  useEffect(() => {
+    if (isListening && transcript) {
+      setInputValue(transcript);
+    }
+  }, [isListening, transcript]);
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (inputValue.trim() && !isProcessing) {
+      onSubmit(inputValue);
+      setInputValue("");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
     <div className="fixed bottom-0 left-0 right-0 p-8 z-50">
       <div className="max-w-3xl mx-auto">
-        <div className="glass rounded-[2rem] p-5 shadow-2xl border border-border relative overflow-hidden">
+        <form 
+          onSubmit={handleSubmit}
+          className="glass rounded-[2rem] p-3 shadow-2xl border border-border relative overflow-hidden"
+        >
           {/* Pulsing background when listening */}
           <AnimatePresence>
             {isListening && (
@@ -43,12 +71,13 @@ export const VoiceControl = ({ isListening, transcript, onStart, onStop, onSubmi
             )}
           </AnimatePresence>
 
-          <div className="relative flex items-center gap-4">
+          <div className="relative flex items-center gap-3">
             <button
+              type="button"
               onClick={isListening ? onStop : onStart}
               disabled={isProcessing}
               className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg",
+                "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-lg shrink-0",
                 isListening 
                   ? "bg-red-500 text-white animate-pulse" 
                   : isProcessing
@@ -61,40 +90,48 @@ export const VoiceControl = ({ isListening, transcript, onStart, onStop, onSubmi
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                 >
-                  <Bot size={28} className="opacity-50" />
+                  <Bot size={24} className="opacity-50" />
                 </motion.div>
               ) : isListening ? (
-                <MicOff size={28} />
+                <MicOff size={24} />
               ) : (
-                <Mic size={28} />
+                <Mic size={24} />
               )}
             </button>
 
-            <div className="flex-1">
-              {isListening || transcript ? (
-                <div className="px-2">
-                  <p className={cn(
-                    "text-lg font-medium transition-opacity",
-                    isListening ? "text-foreground animate-pulse" : "text-foreground/80"
-                  )}>
-                    {transcript || t.listening}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-muted font-medium ml-2">{t.placeholder}</p>
+            <div className="flex-1 relative flex items-center">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isProcessing}
+                placeholder={isListening ? t.listening : t.typePlaceholder}
+                className={cn(
+                  "w-full bg-transparent border-none focus:ring-0 text-lg font-medium py-2 px-2 transition-all placeholder:text-muted/50",
+                  isListening ? "text-foreground animate-pulse" : "text-foreground"
+                )}
+              />
+              {!inputValue && !isListening && (
+                <Keyboard size={18} className="absolute right-4 text-muted/30 pointer-events-none" />
               )}
             </div>
 
-            {transcript && !isListening && (
-              <button
-                onClick={() => onSubmit(transcript)}
-                className="w-12 h-12 bg-primary text-background rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
-              >
-                <Send size={20} />
-              </button>
-            )}
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || isProcessing || isListening}
+              className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300",
+                inputValue.trim() && !isProcessing && !isListening
+                  ? "bg-primary text-background hover:scale-105 active:scale-95 shadow-lg shadow-primary/20"
+                  : "bg-slate-100 text-slate-300 scale-90 opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Send size={20} />
+            </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

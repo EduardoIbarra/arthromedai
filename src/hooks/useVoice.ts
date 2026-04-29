@@ -77,44 +77,13 @@ export const useVoice = (language: Language) => {
       audioRef.current.pause();
     }
 
-    setIsSpeaking(true);
-    try {
-      const response = await fetch('/api/speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, language }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate speech');
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-      
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-        setIsSpeaking(false);
-      };
-
-      console.log("TTS: Using OpenAI API (Nova)");
-      await audio.play();
-    } catch (error) {
+    const handleTTSError = (text: string, error: any) => {
       console.warn("TTS: API failed, falling back to browser synthesis.", error);
       setIsSpeaking(false);
       
-      // Fallback to browser's SpeechSynthesis if API fails
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
-        
-        // Ensure voices are loaded
         let voices = window.speechSynthesis.getVoices();
-        
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.onend = () => setIsSpeaking(false);
         utterance.onerror = () => setIsSpeaking(false);
@@ -130,13 +99,7 @@ export const useVoice = (language: Language) => {
           targetVoice = voices.find(v => v.name.includes('Samantha') || v.name.includes('Victoria') || v.name.includes('Google US English'));
         }
         
-        if (targetVoice) {
-          utterance.voice = targetVoice;
-          console.log(`TTS Fallback: Using browser voice: ${targetVoice.name}`);
-        } else {
-          console.log("TTS Fallback: No matching voice found, using system default.");
-        }
-        
+        if (targetVoice) utterance.voice = targetVoice;
         utterance.lang = translations[language].voiceLang;
         utterance.rate = 1.0;
         utterance.pitch = 1.1; 
@@ -144,8 +107,63 @@ export const useVoice = (language: Language) => {
         setIsSpeaking(true);
         window.speechSynthesis.speak(utterance);
       }
+    };
+
+    const performManualFetch = async (text: string) => {
+      try {
+        const response = await fetch('/api/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, language }),
+        });
+
+        if (!response.ok) throw new Error('Failed to generate speech');
+
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          audioRef.current = null;
+          setIsSpeaking(false);
+        };
+
+        await audio.play();
+      } catch (e) {
+        handleTTSError(text, e);
+      }
+    };
+
+    setIsSpeaking(true);
+    try {
+      if (text.length < 1500) {
+        const url = `/api/speech?text=${encodeURIComponent(text)}&language=${language}`;
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.onended = () => {
+          audioRef.current = null;
+          setIsSpeaking(false);
+        };
+
+        audio.onerror = (e) => {
+          console.warn("Audio streaming failed, falling back to manual fetch", e);
+          performManualFetch(text);
+        };
+
+        await audio.play();
+        return;
+      }
+
+      await performManualFetch(text);
+    } catch (error) {
+      handleTTSError(text, error);
     }
   }, [language]);
+
 
   return {
     isListening,
