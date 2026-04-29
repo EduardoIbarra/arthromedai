@@ -68,15 +68,27 @@ export const ChatInterface = () => {
 
   // Re-initialize welcome message when language changes if it's the only message
   useEffect(() => {
-    if (messages.length === 1 && messages[0].id === '1') {
-      setMessages([{
-        id: '1',
-        role: 'assistant',
-        parts: [{ type: 'text', text: t.welcome }],
-        createdAt: new Date()
-      } as any]);
-    }
-  }, [language, setMessages, t.welcome, messages]);
+    setMessages((prevMessages: any[]) => {
+      if (prevMessages.length === 1 && prevMessages[0].id === '1') {
+        const currentContent = prevMessages[0].parts
+          ?.filter((part: any) => part.type === 'text')
+          ?.map((part: any) => part.text)
+          ?.join('') || '';
+        
+        if (currentContent === t.welcome) {
+          return prevMessages;
+        }
+
+        return [{
+          id: '1',
+          role: 'assistant',
+          parts: [{ type: 'text', text: t.welcome }],
+          createdAt: new Date()
+        } as any];
+      }
+      return prevMessages;
+    });
+  }, [language, setMessages, t.welcome]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
